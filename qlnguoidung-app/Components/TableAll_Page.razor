@@ -1,0 +1,49 @@
+@typeparam TItem
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@using Microsoft.AspNetCore.SignalR.Client
+@using AutoMapper
+@if (TableTitle != "")
+{
+        <div class="row" style="margin-bottom:30px; margin-top: 10px">
+        <div class="col-md-12">
+            <RadzenLabel
+                Style="text-align: center;color: rgb(10, 10, 178); font-family: 'Source Sans 3', sans-serif ; font-weight: bold; width: 100%; font-size: 25px "
+                Text="@("DANH SÁCH " + TableTitle.ToUpper())">
+            </RadzenLabel>
+        </div>
+    </div>
+}
+
+<div style="justify-content:space-between;margin-bottom:5px; margin-right: 1rem">
+
+    <div class="col-12" style="margin-top:2rem">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" PageSizeOptions="@pageSizeOptions"
+            Data=@listData TItem="TItem" AllowColumnResize="true" AllowPaging="true"
+            PageSizeText="Bản ghi trên một trang" EmptyText="Không có dữ liệu"
+            Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem">
+            <Columns>
+                @MoreColumns
+            </Columns>
+
+        </RadzenDataGrid>
+    </div>
+
+
+
+</div>
+
+
+@code {
+    @* Title cho bảng *@
+    [Parameter] public string TableTitle { get; set; } = "";
+    @* Thêm các cột trong Datagrid *@
+    [Parameter] public RenderFragment? MoreColumns { get; set; } = null;
+    @*Truyền dữ liệu từ ngoài vào *@
+    [Parameter] public List<TItem> listData { get; set; } = default!;
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+
+
+
+}

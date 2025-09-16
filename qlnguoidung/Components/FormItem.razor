@@ -1,0 +1,16 @@
+<div style="display: flex; width: 100%">
+    <RadzenLabel Text="@Label"
+        Style="font-family: 'Source Sans 3', sans-serif ; font-weight: 400; color: blue; font-size: 18px; margin-bottom: 10px; margin-top: 10px; ">
+    </RadzenLabel>
+    @if (Required == true)
+    {
+        <span style="color: red; margin-bottom: 10px; margin-top: 10px;">(*)</span>
+    }
+</div>
+@ChildContent
+
+@code {
+    [Parameter] public RenderFragment ChildContent { set; get; } = default!;
+    [Parameter] public string Label { set; get; } = "";
+    [Parameter] public bool? Required { set; get; } = false;
+}

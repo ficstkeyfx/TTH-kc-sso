@@ -1,0 +1,112 @@
+@typeparam TItem
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@using Microsoft.AspNetCore.SignalR.Client
+@using AutoMapper
+@* Hiện title của bảng *@
+<div class="row" style="margin-bottom:30px; margin-top: 10px">
+    <div class="col-md-12">
+        <RadzenLabel
+            Style="text-align: center;color: rgb(10, 10, 178); font-family: 'Source Sans 3', sans-serif ; font-weight: bold; width: 100%; font-size: 25px "
+            Text="@("DANH SÁCH " + TableTitle.ToUpper())">
+        </RadzenLabel>
+    </div>
+</div>
+
+<div style="justify-content:space-between;margin-bottom:5px; margin-right: 1rem">
+
+    <div class="col-12" style="margin-top:2rem">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" Data=@listData @ref=@GrdTable TItem="TItem"
+            AllowColumnResize="true" PageSizeOptions="@pageSizeOptions" LoadData=@LoadData IsLoading=@isLoading
+            Count="@count" ShowPagingSummary="@showPagerSummary" PagingSummaryFormat="@pagingSummaryFormat"
+            AllowPaging="true" Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+            PageSizeText="Bản ghi trên một trang" EmptyText="Không có dữ liệu">
+            <Columns>
+                <RadzenDataGridColumn TItem="TItem" Title="STT" Sortable="false" Width="50px"
+                    TextAlign="TextAlign.Center">
+                    <Template Context="ctx">
+                        @(listData.IndexOf(ctx) + 1 + GrdTable.CurrentPage * GrdTable.PageSize)
+                    </Template>
+                </RadzenDataGridColumn>
+                @MoreColumns
+                <RadzenDataGridColumn TItem="TItem" Title="Chọn" Sortable="false" Width="50px"
+                    TextAlign="TextAlign.Center">
+                    <Template Context="ctx">
+                        <RadzenCheckBox TValue="bool" Change=@(args => AddData(ctx)) />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+
+        </RadzenDataGrid>
+    </div>
+
+    <div class="col-12 col-lg-12 d-flex align-items-center justify-content-center" style="margin-top: 50px; bottom: 0%;width: 100%; background-color: transparent;
+                height: 8%;">
+
+        <RadzenButton Icon="done" ButtonStyle="ButtonStyle.Success" Style="margin-right:1%;" Text="Lưu dữ liệu"
+            Click="@ReturnData">
+        </RadzenButton>
+        <RadzenButton Icon="highlight_off" ButtonStyle="ButtonStyle.Danger" Text="Thoát"
+            Click="@(args => CloseDialog())" Style="margin-right:1%;">
+        </RadzenButton>
+
+    </div>
+
+
+
+</div>
+
+
+@code {
+    @* Title cho bảng *@
+    [Parameter] public string TableTitle { get; set; } = "";
+    [Parameter] public IQueryable<TItem> query { get; set; } = default!;
+    @* Thêm các cột trong Datagrid *@
+    [Parameter] public RenderFragment? MoreColumns { get; set; } = null;
+    @* Cấu hình hàm gọi lấy dữ liệu ở ngoài *@
+    [Parameter] public EventCallback<List<TItem>> OnReloadData { set; get; }
+    @* Cấu hình hàm gọi truyền dữ liệu đã select ra ngoài *@
+    [Parameter] public EventCallback<List<TItem>> OnReturnData { set; get; }
+    @* Cấu hình cho Datagrid *@
+    RadzenDataGrid<TItem> GrdTable = default!;
+    List<TItem> listData = default!;
+    List<TItem> listSelect = new List<TItem>();
+    string pagingSummaryFormat = "Trang {0} / {1} (Tổng số {2} bản ghi)";
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+    bool isLoading = false;
+    bool showPagerSummary = true;
+    int count;
+
+    void AddData(TItem record)
+    {
+        if (listSelect != null && listSelect.Contains(record))
+        {
+            listSelect.Remove(record);
+        }
+        if (listSelect != null && !listSelect.Contains(record))
+        {
+            listSelect.Add(record);
+        }
+
+    }
+    void CloseDialog()
+    {
+        dialog.Close(null);
+    }
+    async Task ReturnData()
+    {
+        await OnReturnData.InvokeAsync(listSelect);
+    }
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        await Task.Yield();
+        count = query.Count();
+        listData = await query.Skip(args.Skip == null ? 0 : args.Skip.Value).Take(args.Top == null ? 0 :
+        args.Top.Value).ToListAsync();
+        isLoading = false;
+        await OnReloadData.InvokeAsync(listData);
+    }
+
+}

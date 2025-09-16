@@ -1,0 +1,107 @@
+@page "/admin/QLTaiKhoan"
+@using QLNguoiDung.Components
+@using QLNguoiDung.Models
+@inject dbQLNguoiDungContext dbContext
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@inject ApiServices apiService
+@inject HttpClient http
+
+
+<style>
+    .rz-label {
+        margin-bottom: 0;
+        font-weight: bold;
+    }
+
+    .rz-column-title-content {
+        font-weight: bold;
+    }
+</style>
+
+<TableAPI @ref=grd TItem="tbSystemUser" TableTitle="DANH SÁCH TÀI KHOẢN NGƯỜI DÙNG" FormTitle="THÔNG TIN NGƯỜI DÙNG" query=@query
+          OnDelete="@(args => Delete((tbSystemUser)args))" OnAdd="@(args => Add((tbSystemUser)args))" AddNew=true isSearch=false ShowClose=true>
+    <MoreColumns>
+        <RadzenDataGridColumn TItem="tbSystemUser" Title="Tên tài khoản" TextAlign="TextAlign.Left" Sortable="false"
+                              Width="200px" Property="UserName" Frozen="true">
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="tbSystemUser" Title="Họ và tên người dùng" TextAlign="TextAlign.Left" Sortable="false"
+                              Width="100%" Property="FullName" Frozen="true">
+        </RadzenDataGridColumn>
+    </MoreColumns>
+    <FormDialog Context="ctx">
+     
+        <QLTaiKhoan_Detail Record="ctx"  />
+    </FormDialog>
+</TableAPI>
+@code {
+    TableAPI<tbSystemUser> grd;
+    string query=default!;
+    protected override async Task OnInitializedAsync()
+    {
+        //query = dbContext.tbUsers.Where(p=>p.IdUser==-1).AsQueryable();
+        query = "api/systemuser/getallpaged";
+    }
+    protected async Task Delete(tbSystemUser record)
+    {
+        try
+        {
+            string apiPath = "api/user";
+            string lamda = "p=>p.IdUser==" + record.IdUser;
+            await apiService.Delete<tbUser>(apiPath, lamda);
+        // 2. Xóa trong Keycloak
+        var kcDelete = new DeleteUserRequest
+        {
+            Username = record.UserName,
+
+        };
+
+        var response = await http.PostAsJsonAsync("api/DeleteUser", kcDelete);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<DeleteUserResponse>();
+            if (result != null)
+            {
+                notificationService.Notify(NotificationSeverity.Success,
+                    "Keycloak", $"Xóa user Keycloak thành công (Id: {result.UserId})", duration: 3000);
+            }
+            else
+            {
+                notificationService.Notify(NotificationSeverity.Warning,
+                    "Keycloak", "Xóa user Keycloak thành công nhưng không nhận được phản hồi", duration: 3000);
+            }
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            notificationService.Notify(NotificationSeverity.Error,
+                "Keycloak", $"Xóa user Keycloak thất bại: {response.StatusCode} - {error}", duration: 4000);
+        }
+
+            // 3. Refresh lại lưới
+            await grd.Refresh();
+        }
+        catch
+        {
+            //notificationService.Notify(NotificationSeverity.Error, $"Lỗi khi xoá dữ liệu", duration: -1);
+        }
+    }
+    protected async Task Add(tbSystemUser record)
+    {
+        await grd.Refresh();
+    }
+    public class DeleteUserRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+    }
+
+    public class DeleteUserResponse
+    {
+        public string Message { get; set; } = string.Empty;
+        public string? UserId { get; set; }
+    }
+
+}

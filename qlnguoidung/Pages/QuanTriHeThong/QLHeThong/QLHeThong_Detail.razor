@@ -1,0 +1,96 @@
+@using QLNguoiDung.Models 
+@inject dbQLNguoiDungContext dbContext
+@inject Radzen.DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@inject IJSRuntime JSRuntime
+@inject ApiServices apiService
+@using QLNguoiDung.Components
+@using System.Linq.Expressions
+<RadzenTemplateForm TItem="tbChucNang" Data="Record" Submit="((tbChucNang obj) => Submit(obj))">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <FormItem Label="Đường dẫn">
+                    <RadzenTextBox Placeholder="Đường dẫn" @bind-Value=@Record.DuongDan Style="Width: 100%" />
+                </FormItem>
+            </div>
+            <div class="col-12">
+                <FormItem Label="Tên chức năng">
+                    <RadzenTextBox Placeholder="Tên chức năng" @bind-Value=@Record.TenChucNang Style="Width: 100%" />
+                </FormItem>
+            </div>
+            <div class="col-12">
+                <FormItem Label="Biểu tượng">
+                    <RadzenTextBox Placeholder="Biểu tượng" @bind-Value=@Record.BieuTuong Style="Width: 100%" />
+                </FormItem>
+            </div>
+        </div>
+        <div class="row" style="margin-top: 10px">
+            <div class="col-md-12 d-flex align-items-center justify-content-center" style="margin-bottom: 30px;">
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Lưu" style="margin-right:10px;"/>
+                <RadzenButton Text="Thoát" ButtonStyle="ButtonStyle.Secondary"
+                    Click="@(() => ChangeFeature.InvokeAsync(null))" />
+            </div>
+        </div>
+    </div>
+</RadzenTemplateForm>
+@code {
+    [Parameter] public tbChucNang Record { get; set; }
+    [Parameter] public EventCallback<tbChucNang> ChangeFeature { get; set; }
+
+    tbChucNang Data = new tbChucNang();
+
+    protected override async void OnInitialized()
+    {
+        string apiPath = "api/chucnang1/getallnopaged";
+        Expression<Func<tbChucNang, bool>> lamda = p => p.IdChucNang == -1;
+        string strLamda = "p => (p.IdChucNang == -1)";
+        string lamdaVal = "p => (p.IdChucNang == " + Record.IdChucNang + ")";
+        if(Record.IdChucNang!=0)
+        {
+            Data = (await apiService.GetAll<tbChucNang>(apiPath, lamdaVal)).ToList()[0];
+        }
+        
+        //Data = dbContext.tbChucNangs.Where(item => item.IdChucNang == Record.IdChucNang).FirstOrDefault();
+        if (Data == null)
+        {
+            Data = new tbChucNang();
+            if (Record.ChucNangCha != null)
+            {
+                Data.ChucNangCha = Record.ChucNangCha;
+            }
+        }
+    }
+
+    async void Submit(tbChucNang feature)
+    {
+        if (Record.IdChucNang == 0)
+        {
+            string seqName = "seq_STTChucNang";
+            if (Record.ChucNangCha == null)
+            {
+                feature.STT = await apiService.GetId<int>($"api/nhom1/getid", seqName);   //SequenceId.GetInt("dbo.seq_STTChucNang");
+                feature.ChucNangCha = null;
+            }
+            if (Record.ChucNangCha != null)
+            {
+                feature.ChucNangCha = Record.ChucNangCha;
+                feature.STT = await apiService.GetId<int>($"api/nhom1/getid", seqName);// SequenceId.GetInt("dbo.seq_STTChucNang");
+            }
+            feature.IdChucNang = await apiService.GetId<int>($"api/nhom1/getid", "seq_tbChucNang");// SequenceId.GetInt("seq_tbChucNang");
+            apiService.Create<tbChucNang>("api/chucnang1", feature);
+            // dbContext.tbChucNangs.Add(feature);
+            // dbContext.SaveChanges();
+            // notificationService.Notify(NotificationSeverity.Success, "Lưu thành công", null, duration: 1500);
+        }
+        else
+        {
+            apiService.Update<tbChucNang>("api/chucnang1", feature);
+            // dbContext.tbChucNangs.Update(feature);
+            // dbContext.SaveChanges();
+            // notificationService.Notify(NotificationSeverity.Success, "Lưu thành công", null, duration: 1500);
+        }
+       ChangeFeature.InvokeAsync(feature);
+    }
+}

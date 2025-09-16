@@ -1,0 +1,61 @@
+@using QLNguoiDung.Components
+@using QLNguoiDung.Models
+@inject NotificationService notificationService
+@inject HttpClient Http
+@inject DialogService dialog
+@inject ApiServices apiServices
+
+@if (!Loading)
+{
+    <Form TItem="tbNhom" Record=@objNhom OnSubmit=@(args => Submit((tbNhom)args))>
+    <MoreForms>
+        <div class="row">
+            <FormField Text="Tên nhóm" Size="3">
+                <RadzenTextBox @bind-Value=@objNhom.TenNhom />
+            </FormField>
+
+            <FormField Text="Mô tả" Size="9">
+                <RadzenTextBox @bind-Value=@objNhom.MoTa />
+            </FormField>
+        </div>
+    </MoreForms>
+    </Form>
+}
+else
+{
+    <LoadingDialog/>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; } = default!;
+    [Parameter] public tbNhom Record { set; get; } = default!;
+    tbNhom objNhom = new tbNhom();
+    bool AddNew = false;
+    bool Loading = true;
+    string token = "";
+    protected override async Task OnInitializedAsync()
+    {
+        Loading = true;
+        objNhom = Record;
+
+        if (Record.IdNhom == 0)
+        {
+            AddNew = true;
+        }
+        Loading = false;
+    }
+    protected async Task Submit(tbNhom obj)
+    {
+        string seqName = "seq_tbNhom";
+        if (obj.IdNhom == 0)
+        {
+            obj.IdNhom = await apiServices.GetId<int>($"api/nhom/getid", seqName);
+            apiServices.Create<tbNhom>($"api/nhom",obj);
+        }
+        else
+        {
+            apiServices.Update<tbNhom>($"api/nhom", obj);
+        }
+        dialog.Close(obj);
+    }
+}

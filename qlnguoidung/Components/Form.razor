@@ -1,0 +1,62 @@
+@inject DialogService dialog
+@typeparam TItem
+@inject NotificationService notificationService
+
+<RadzenTemplateForm TItem="TItem" Data=@Record Style="width: 100%" Submit=@(args => Submit((TItem)args))>
+    <div class="container-fluid">
+        @MoreForms
+        <div class="row">
+            <div class="col-12 col-lg-12 d-flex align-items-center justify-content-center" style="margin-top: 50px; bottom: 0%;width: 100%; background-color: transparent;
+                height: 8%;">
+
+                @if(CanSave)
+                {
+                    <RadzenButton Icon="save" Style="margin-right:1%;" ButtonType="ButtonType.Submit"
+                        ButtonStyle="ButtonStyle.Primary" Text="Lưu dữ liệu" Visible=@AddNew>
+                    </RadzenButton>
+                }
+
+                @MoreButtons
+                <RadzenButton Icon="highlight_off" ButtonStyle="ButtonStyle.Danger" Text="Thoát"
+                    Click="@(args => CloseDialog())">
+                </RadzenButton>
+
+            </div>
+        </div>
+
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    @* Thêm các nút lệnh khác *@
+    [Parameter] public RenderFragment? MoreButtons { get; set; } = null;
+    @* Hàm gọi submit *@
+    [Parameter] public EventCallback<TItem> OnSubmit { get; set; }
+    @* Thêm các form nhập *@
+    [Parameter] public RenderFragment? MoreForms { get; set; } = null;
+    @* Data truyền vào *@
+    [Parameter] public TItem Record { get; set; } = default!;
+    @* Có cho phép hiện nút thêm mới không *@
+    [Parameter] public bool AddNew { get; set; } = true;
+    [Parameter] public bool CanSave { get; set; } = true;
+
+    protected async Task Submit(TItem obj)
+    {
+        try
+        {
+            await OnSubmit.InvokeAsync(obj);
+            await Task.Delay(1000);
+            dialog.Close(obj);
+        }
+         catch(Exception e)
+        {
+            notificationService.Notify(NotificationSeverity.Error, "Lỗi khi lưu dữ liệu", null, duration: 2000);
+            notificationService.Notify(NotificationSeverity.Error, e.Message + " Form", null, duration: 2000);
+        }
+    }
+
+    protected void CloseDialog()
+    {
+        dialog.Close(null);
+    }
+}

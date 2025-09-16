@@ -1,0 +1,233 @@
+@page "/admin/QLHeThong"
+@using QLNguoiDung.Models 
+@inject Radzen.DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@inject IJSRuntime JSRuntime
+@using System.Linq.Expressions
+@inject ApiServices apiServices
+<style>
+    .thao-tac-chuc-nang {
+        display: none;
+    }
+
+    .chuc-nang {
+        min-height: 30px;
+    }
+
+    .chuc-nang:hover .thao-tac-chuc-nang {
+        display: block;
+    }
+
+    .rz-treenode-content .rz-treenode-label {
+        width: 100%;
+    }
+</style>
+
+<div class="row" style="margin-bottom:10px; margin-top: 20px">
+    <div class="col-md-12">
+        <RadzenLabel Style="text-align: center;color: green; font-family: Verdana; font-weight: bold; width: 100% "
+            Text="Danh sách chức năng">
+        </RadzenLabel>
+    </div>
+</div>
+
+<div class="row" style="display:flex;justify-content:space-between;margin-bottom:5px">
+    <div>
+        <RadzenButton Text="Thêm mới" Click="args => Add()" Style="margin-left:15px" />
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8" style="padding: 0px">
+            <RadzenCard Style="padding: 20px 6px;">
+                <RadzenTree Style="height: 600px; width: 100%; margin-top: 10px">
+                    @renderFeature(null, 1, "")
+                </RadzenTree>
+            </RadzenCard>
+        </div>
+        <div class="col-lg-4">
+            @if (Change == true)
+            {
+                    <QLHeThong_Detail Record="Selected" ChangeFeature="@(async arg =>  { Change = false;
+                                                                             if (arg != null){
+                                                                                lstChucNang =(await apiServices.GetAll<tbChucNang>($"api/chucnang1/getallnopaged"));
+                                                                               // lstChucNang = dbContext.tbChucNangs.OrderBy(item => item.STT).ToList();
+                                                                             }
+                                                                            })" />
+            }
+        </div>
+    </div>
+</div>
+
+
+@code {
+    List<tbChucNang> lstChucNang = new List<tbChucNang>();
+    bool Change = false;
+    tbChucNang Selected = new tbChucNang();
+
+    protected override async Task OnInitializedAsync()
+    {
+        //lstChucNang = dbContext.tbChucNangs.OrderBy(item => item.STT).ToList();
+        lstChucNang = await apiServices.GetAll<tbChucNang>($"api/chucnang1/getallnopaged");
+        base.OnInitialized();
+    }
+    RenderFragment renderFeature(int? Parent, int level, string STT)
+    {
+        List<tbChucNang> list = lstChucNang.Where(item => item.ChucNangCha == Parent).OrderBy(item => item.STT).ToList();
+
+        return
+    @<div>
+            @for (int i = 0; i < list.Count; i++)
+        {
+            tbChucNang item = list[i];
+            List<string> arr = STT.Split(".").ToList();
+            if (arr.Count == 1)
+            {
+                arr[arr.Count - 1] = (i + 1).ToString();
+            }
+            else
+            {
+                arr.Add((i + 1).ToString());
+            }
+            List<tbChucNang> temp = lstChucNang.Where(para => para.ChucNangCha == item.IdChucNang).ToList();
+            bool checkRender = temp.Count > 0 ? true : false;
+            @if (checkRender)
+            {
+                                <RadzenTreeItem>
+                                    <Template>
+                                        <div class="container-fluid chuc-nang">
+                                            <div class="row">
+                                                <div class="col-8" style="padding: 0px">
+                                    @(String.Join(".", arr) + ". " + item.TenChucNang)
+                                                </div>
+                                                <div class="col-4 thao-tac-chuc-nang" style="padding: 0px">
+                                                    <RadzenButton Icon="edit" Size="ButtonSize.Small" Click="args => Edit(item)" />
+                                                    <RadzenButton Icon="delete" Size="ButtonSize.Small" Click="args => Delete(item)" />
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="add" Click="args => AddChild(item)"></RadzenButton>
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="arrow_drop_down" Disabled="list.IndexOf(item)==list.Count-1" Click="args => Swap(item, list[list.IndexOf(item)+1])"></RadzenButton>
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="arrow_drop_up" Disabled="list.IndexOf(item)==0" Click="args => Swap(item, list[list.IndexOf(item)-1])"></RadzenButton>
+                                                </div>
+                                                </div>
+                                            </div>
+                                        </Template>
+                                        <ChildContent>
+                        @renderFeature(item.IdChucNang,level+1,String.Join(".", arr))
+                                        </ChildContent>
+                                    </RadzenTreeItem>
+            }
+            else
+            {
+                                <RadzenTreeItem>
+                                    <Template>
+                                        <div class="container-fluid chuc-nang">
+                                            <div class="row">
+                                                <div class="col-8" style="padding: 0px">
+                                    @(String.Join(".", arr) + ". " + item.TenChucNang)
+                                                </div>
+                                                <div class="col-4 thao-tac-chuc-nang" style="padding: 0px">
+                                                    <RadzenButton Icon="edit" Size="ButtonSize.Small" Click="args => Edit(item)" />
+                                                    <RadzenButton Icon="delete" Size="ButtonSize.Small" Click="args => Delete(item)" />
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="add" Click="args => AddChild(item)"></RadzenButton>
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="arrow_drop_down" Disabled="list.IndexOf(item)==list.Count-1" Click="args => Swap(item, list[list.IndexOf(item)+1])"></RadzenButton>
+                                                    <RadzenButton Size="ButtonSize.Small" Icon="arrow_drop_up" Disabled="list.IndexOf(item)==0" Click="args => Swap(item, list[list.IndexOf(item)-1])"></RadzenButton>
+                                                </div>
+                                                </div>
+                                            </div>
+                                        </Template>
+                                    </RadzenTreeItem>
+            }
+
+        }
+
+
+    </div>
+    ;
+    }
+
+    async void Swap(tbChucNang cur, tbChucNang des)
+    {
+        int? tmp = cur.STT;
+        cur.STT = des.STT;
+        des.STT = tmp;
+        string apiPath = "api/chucnang1";
+        apiServices.Update<tbChucNang>(apiPath, cur);
+        apiServices.Update<tbChucNang>(apiPath, des);
+        // dbContext.tbChucNangs.Update(cur);
+        // dbContext.tbChucNangs.Update(des);
+        // dbContext.SaveChanges();
+    }
+
+    async void DeleteFull(tbChucNang feature)
+    {
+        string apiPath = "api/chucnang1/getallnopaged";
+        // Expression<Func<tbChucNang, bool>> lamda = p => p.ChucNangCha == -1;
+        // string strLamda = "p => (p.ChucNangCha == Convert(-1, Nullable`1))";
+        string lamdaVal = "p => (p.ChucNangCha == " + feature.IdChucNang + ")";
+        if(feature.IdChucNang!=0 || feature.IdChucNang!=null)
+        {
+            List<tbChucNang> list = await apiServices.GetAll<tbChucNang>(apiPath, lamdaVal);
+            //List<tbChucNang> list = dbContext.tbChucNangs.Where(item => item.ChucNangCha == feature.IdChucNang).ToList();
+
+            list.ForEach(item => DeleteFull(item));
+        }
+      
+
+        // lamda=p=>p.IdChucNang==-1;
+        // strLamda = "p => (p.IdChucNang == -1";
+        apiPath = "api/chucnang1";
+        lamdaVal = "p => (p.IdChucNang == " + feature.IdChucNang + ")";
+        apiServices.Delete<tbChucNang>(apiPath, lamdaVal);
+        //dbContext.tbChucNangs.Remove(feature);
+        //dbContext.SaveChanges();
+    }
+
+    async void Delete(tbChucNang feature)
+    {
+        var confirmResult = await dialog.Confirm
+        (
+        "Chắc chắn muốn xóa?",
+        "Xác nhận xoá",
+        new ConfirmOptions()
+            {
+                OkButtonText = "Đồng ý",
+                CancelButtonText = "Hủy",
+            }
+        );
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            DeleteFull(feature);
+            //notificationService.Notify(NotificationSeverity.Success, "Xóa thành công", null, duration: 1500);
+            // lstChucNang = dbContext.tbChucNangs.OrderBy(item => item.STT).ToList();
+            lstChucNang = (await apiServices.GetAll<tbChucNang>($"api/chucnang1/getallnopaged"));
+            renderFeature(null, 1, "");
+            StateHasChanged();
+        }
+    }
+
+    void Edit(tbChucNang feature)
+    {
+        Selected = feature;
+        Change = true;
+        StateHasChanged();
+    }
+
+    void AddChild(tbChucNang feature)
+    {
+        Selected = new tbChucNang();
+        Selected.ChucNangCha = feature.IdChucNang;
+        Change = true;
+        StateHasChanged();
+    }
+    void Add()
+    {
+        Selected = new tbChucNang();
+        Change = true;
+        StateHasChanged();
+    }
+
+    void Navigate(tbChucNang feature)
+    {
+        UriHelper.NavigateTo(feature.DuongDan, forceLoad: true);
+    }
+}

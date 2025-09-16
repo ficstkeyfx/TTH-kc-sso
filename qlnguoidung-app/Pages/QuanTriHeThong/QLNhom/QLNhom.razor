@@ -1,0 +1,58 @@
+@page "/admin/QLNhom"
+@using QLNguoiDung.Components
+@using QLNguoiDung.Models
+@using System.Linq
+@using System.Linq.Expressions;
+@inject HttpClient Http
+@inject NotificationService notificationService
+@inject ApiServices apiServices
+<style>
+    .rz-label {
+        margin-bottom: 0;
+        font-weight: bold;
+    }
+
+    .rz-column-title-content {
+        font-weight: bold;
+    }
+</style>
+
+<TableAPI @ref=grd TItem="tbNhom" TableTitle="DANH SÁCH NHÓM NGƯỜI DÙNG" FormTitle="THÔNG TIN NHÓM NGƯỜI DÙNG" query="@query"
+          OnDelete="@(args => Delete((tbNhom)args))" OnAdd="@(args => Add((tbNhom)args))" isSearch=false ShowClose=true>
+    <MoreColumns>
+        <RadzenDataGridColumn TItem="tbNhom" Title="Tên nhóm" TextAlign="TextAlign.Left" Sortable="false" Width="200px"
+                              Property="TenNhom" Frozen="true">
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="tbNhom" Title="Mô tả nhóm" TextAlign="TextAlign.Left" Sortable="false" Width="100%"
+                              Property="MoTa" Frozen="true">
+        </RadzenDataGridColumn>
+    </MoreColumns>
+    <FormDialog Context="ctx">
+        <QLNhom_Detail Record="ctx" />
+    </FormDialog>
+</TableAPI>
+@code {
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; } = default!;
+
+    //TableAPI<tbNhom> GTable = default!;
+    Table<tbNhom> GTable = default!;
+    TableAPI<tbNhom> grd = default!;
+    string query= default!;
+    string lamdaVal ;
+    List<tbNhom> l;
+    protected override async Task OnInitializedAsync()
+    {
+        //Đoạn code lấy dữ liệu cho TableAPI
+        query ="api/nhom/getallpaged";//apiPath
+    }
+    protected async Task Delete(tbNhom record)
+    {
+        string apiPath = "api/nhom";
+        lamdaVal = "p => (p.IdNhom == "+ record.IdNhom + ")";
+        await apiServices.Delete<tbNhom>(apiPath,lamdaVal);
+    }
+    protected async Task Add(tbNhom record)
+    {
+        await grd.Refresh();
+    }
+}

@@ -1,0 +1,20 @@
+@page "/logout"
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject AuthenticationStateProvider authStateProvider
+@inject NavigationManager UriHelper
+@inject ProtectedLocalStorage ProtectedStorage
+@using QLNguoiDung.Authentication
+@attribute [Authorize]
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var customAuthStateProvider = (CustomAuthenticationStateProvider)authStateProvider;
+        await ProtectedStorage.DeleteAsync("access_token");
+        await ProtectedStorage.DeleteAsync("refresh_token");
+        await ProtectedStorage.DeleteAsync("expires_at");
+        await ProtectedStorage.DeleteAsync("dateExpire");
+        await ProtectedStorage.DeleteAsync("userId");
+        await customAuthStateProvider.UpdateAuthenticationState(null);
+        UriHelper.NavigateTo("https://localhost:7134/login?redirect=https://localhost:7135/callback&client=TestSSO3", true);
+    }
+}

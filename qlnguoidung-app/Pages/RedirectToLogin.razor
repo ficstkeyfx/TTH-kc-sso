@@ -1,0 +1,8 @@
+@inject NavigationManager UriHelper
+
+@code {
+    protected override void OnAfterRender(bool firstRender)
+    {
+        UriHelper.NavigateTo("https://localhost:7134/login?redirect=https://localhost:7135/callback&client=TestSSO3");
+    }
+}

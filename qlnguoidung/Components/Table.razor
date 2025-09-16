@@ -1,0 +1,297 @@
+@typeparam TItem
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@using Microsoft.AspNetCore.SignalR.Client
+@using AutoMapper
+@using System.Linq.Dynamic.Core;
+@using System.Reflection;
+
+@AddMore
+
+@* Hiện title của bảng *@
+<div class="row" style="margin-bottom:30px; margin-top: 10px">
+    <div class="col-md-12">
+        <RadzenLabel
+            Style="text-align: center;color: rgb(10, 10, 178); font-family: 'Source Sans 3', sans-serif ; font-weight: bold; width: 100%; font-size: 25px "
+            Text="@("DANH SÁCH " + TableTitle.ToUpper())">
+        </RadzenLabel>
+    </div>
+</div>
+
+<div style="margin-bottom:5px; margin-right: 1rem" class="row">
+    @*Button thêm mới*@
+    <div class="col-6" style="padding: 0px">
+        <RadzenButton Visible=@AddNew Click=@(args => AddRow()) Text="@AddBtnCaption" />
+        @if (MoreButtons != null)
+        {
+            @MoreButtons
+        }
+    </div>
+    @if (isSearch)
+    {
+        <div class="col-6 d-flex justify-content-end">
+            <div class="row" style="width: 100%;">
+                <div class="col-10">
+                    <RadzenTextBox style="width: 100%;" @onkeydown=@(args => SearchInputKeyPressed(args))
+                        @bind-Value=@search Placeholder="Nhập thông tin để tìm kiếm" />
+                </div>
+
+                <div class="col-1">
+                    <RadzenButton style="width: 100%;" Icon="search" Click=@(args => SearchVoid()) />
+                </div>
+
+                <div class="col-1">
+                    <RadzenButton style="width: 100%;" Icon="close" Click=@(args => ResetVoid()) />
+
+                </div>
+            </div>
+        </div>
+    }
+
+
+    <br />
+
+
+    <div class="col-12" style="margin-top:2rem">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" Data=@listData @ref=@GrdTable TItem="TItem"
+            AllowColumnResize="true" PageSizeOptions="@pageSizeOptions"  IsLoading=@isLoading
+            Count="@count" ShowPagingSummary="@showPagerSummary" PagingSummaryFormat="@pagingSummaryFormat"
+            AllowPaging="true" Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+            PageSizeText="Bản ghi trên một trang" EmptyText="Không có dữ liệu">
+            <Columns>
+                <RadzenDataGridColumn TItem="TItem" Title="STT" Sortable="false" Width="40px"
+                    TextAlign="TextAlign.Center">
+                    <Template Context="ctx">
+                        @(listData.IndexOf(ctx) + 1 + GrdTable.CurrentPage * GrdTable.PageSize)
+                    </Template>
+                </RadzenDataGridColumn>
+                @MoreColumns
+                @if (HasOperation)
+                {
+                    <RadzenDataGridColumn TItem="TItem" Title="Chi tiết" TextAlign="TextAlign.Center" Width="100px">
+                        <Template Context="ctx">
+                            @if (EditFunction)
+                            {
+                                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Warning" Click="@(args => EditRow(ctx))" />
+                            }
+                            @if (DeleteFunction)
+                            {
+                                <RadzenButton Icon="delete_outline" ButtonStyle="ButtonStyle.Danger"
+                                    Click="@(args => DeleteRow(ctx))" />
+                            }
+
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+
+            </Columns>
+
+        </RadzenDataGrid>
+    </div>
+
+
+
+</div>
+
+
+@code {
+    @* Có hiện cột thao tác hay không *@
+    [Parameter] public bool HasOperation { get; set; } = true;
+    @* Có được thêm mới hay không *@
+    [Parameter] public bool AddNew { get; set; } = true;
+    @* Title cho bảng *@
+    [Parameter] public string TableTitle { get; set; } = "";
+    @* Title cho nút thêm mới *@
+    [Parameter] public string AddBtnCaption { get; set; } = "Thêm mới";
+    @* Có cho phép delete không *@
+    [Parameter] public bool DeleteFunction { get; set; } = true;
+    @* Có cho phép edit không *@
+    [Parameter] public bool EditFunction { get; set; } = true;
+    @* Thêm các nút lệnh khác *@
+    [Parameter] public RenderFragment? MoreButtons { get; set; } = null;
+    @* Query từ ngoài truyền vào *@
+    [Parameter] public IQueryable<TItem> query { get; set; } = default!;
+    @* Thêm các cột trong Datagrid *@
+    [Parameter] public RenderFragment? MoreColumns { get; set; } = null;
+
+    @* Thêm form search trong Datagrid *@
+    [Parameter] public RenderFragment? AddMore { get; set; } = null;
+
+    @* Hiển thị button close tại form *@
+    [Parameter] public bool ShowClose { get; set; } = true;
+    @* Thêm form để hiện chỉnh sửa và thêm mới *@
+    [Parameter] public RenderFragment<TItem> FormDialog { set; get; } = default!;
+    @* Cấu hình hàm gọi delete ở ngoài *@
+    [Parameter] public EventCallback<TItem> OnDelete { set; get; }
+    @* Cấu hình hàm gọi add ở ngoài *@
+    [Parameter] public EventCallback<TItem> OnAdd { set; get; }
+    @* Cấu hình hàm gọi seach bên ngoài *@
+    [Parameter] public EventCallback<string> OnSearch { set; get; }
+    [Parameter] public EventCallback<bool> OnReset { set; get; }
+
+    @* Cấu hình tìm kiếm *@
+    [Parameter] public bool isSearch { get; set; } = true;
+
+
+    @* Cấu hình hàm gọi lấy dữ liệu ở ngoài *@
+    [Parameter] public EventCallback<List<TItem>> OnReloadData { set; get; }
+    @* Cấu hình cho Datagrid *@
+    RadzenDataGrid<TItem> GrdTable = default!;
+    [Parameter] public List<TItem> listData { set; get; }
+    //[Parameter] public List<TItem> listData = default!;
+    string pagingSummaryFormat = "Trang {0} / {1} (Tổng số {2} bản ghi)";
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+    bool isLoading = false;
+    bool showPagerSummary = true;
+    int count;
+
+    @* Cấu hình realtime *@
+    [Parameter] public string UriConnection { get; set; } = "";
+    [Parameter] public int receiverConnection { get; set; } = 0;
+    [Parameter] public int senderConnection { get; set; } = 0;
+    [Parameter] public string notificationConnection { get; set; } = "Có thay đổi mới";
+    private HubConnection hubConnection = default!;
+    @* Cấu hình width và height *@
+    [Parameter] public string widthForm { get; set; } = "100vw";
+    [Parameter] public string heightForm { get; set; } = "100vh";
+    @* [Parameter] public string NameFieldSearch { get; set; } *@
+    @* Dynamic open Dialog *@
+    Task<dynamic> OpenAsync(string title, RenderFragment<TItem> content, TItem record) =>
+    dialog.OpenAsync<WrapperForm<TItem>>(title,
+    new Dictionary<string, object?> { { "Content", content }, { "Record", record } },
+    new DialogOptions() { Width = @widthForm, Height = @heightForm, ShowClose = ShowClose });
+
+    string search = "";
+    protected async Task AddRow()
+    {
+        var obj = new object();
+        var config = new MapperConfiguration(cfg => cfg.CreateMap<object, TItem>());
+        IMapper mapper = config.CreateMapper();
+        TItem record = mapper.Map<TItem>(obj);
+
+        TItem? result = await OpenAsync("THÊM MỚI " + TableTitle.ToUpper(), @FormDialog, record);
+
+        if (result == null)
+        {
+            return;
+        }
+        await OnAdd.InvokeAsync(result);
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+
+
+    }
+    protected async Task EditRow(TItem record)
+    {
+
+        TItem? result = await OpenAsync("THAY ĐỔI " + TableTitle.ToUpper(), @FormDialog, record);
+        if (result == null)
+        {
+            return;
+        }
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+
+
+
+    }
+    protected async Task DeleteRow(TItem record)
+    {
+        var confirmResult = await dialog.Confirm
+        (
+        "Chắc chắn muốn xóa " + "bản ghi" + " ?",
+        "Xác nhận xoá",
+        new ConfirmOptions()
+            {
+                OkButtonText = "Đồng ý",
+                CancelButtonText = "Hủy",
+                Width = "400px"
+            }
+        );
+
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            await OnDelete.InvokeAsync(record);
+        }
+
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+
+
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder().WithUrl(UriHelper.ToAbsoluteUri("/chat")).Build();
+        hubConnection.On<int>("ReceiveMessage", async (receiver) =>
+        {
+            if (receiver == senderConnection)
+            {
+                await Reset();
+            }
+        });
+        await hubConnection.StartAsync();
+    }
+
+    // async Task LoadData(LoadDataArgs args)
+    // {
+    //     isLoading = true;
+    //     await Task.Yield();
+    //     if(query!=null)
+    //     {
+    //         var x = query;
+    //         //count = query.Count();
+    //         listData = query.Skip(args.Skip == null ? 0 : args.Skip.Value).Take(args.Top == null ? 0 :
+    //         args.Top.Value).ToList();
+    //     }
+    //     else
+    //     {
+    //         listData = default;
+    //     }
+
+    //     isLoading = false;
+    //     await OnReloadData.InvokeAsync(listData);
+    // }
+
+    async Task Reset()
+    {
+        GrdTable.Reset(true);
+        await GrdTable.FirstPage(true);
+        @* notificationService.Notify(NotificationSeverity.Info, $"Thông báo:", notificationConnection, duration: -1); *@
+    }
+    async Task ResetOwner()
+    {
+        GrdTable.Reset(true);
+        await GrdTable.FirstPage(true);
+    }
+    public async Task Refresh()
+    {
+        await GrdTable.Reload();
+    }
+
+    public async Task ForceRefresh(IQueryable<TItem> data)
+    {
+        query = data;
+        await GrdTable.Reload();
+    }
+    protected async Task SearchVoid()
+    {
+        await OnSearch.InvokeAsync(search);
+    }
+    protected async Task ResetVoid()
+    {
+        search = "";
+        await OnReset.InvokeAsync(true);
+    }
+
+    protected async Task SearchInputKeyPressed(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter" || args.Key == "NumpadEnter")
+        {
+            await SearchVoid();
+            // Do gọi 1 lần không nghe
+            await SearchVoid();
+
+        }
+    }
+
+}

@@ -1,0 +1,220 @@
+@page "/llkh/quan-ly-he-thong"
+@inject dbQLNguoiDungContext dbContext
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject ApiServices apiService
+@attribute [Authorize]
+
+<AuthorizeView>
+    <Authorized>
+       @*  @if (context.User.Identity?.Name != null && !(context.User.Identity?.Name?.Split(" ")[3].Contains("quan-ly-he-thong") ??
+        false))
+        {
+                        <RedirectToHome />
+        } *@
+<style>
+    .thao-tac-chuc-nang {
+        display: none;
+    }
+
+    .chuc-nang {
+        min-height: 30px;
+    }
+
+    .chuc-nang:hover .thao-tac-chuc-nang {
+        display: block;
+    }
+
+    .rz-treenode-content .rz-treenode-label {
+        width: 100%;
+    }
+</style>
+</Authorized>
+</AuthorizeView>
+
+
+<div class="row" style="margin-bottom:10px; margin-top: 20px">
+    <div class="col-md-12">
+        <RadzenLabel
+            Style="text-align: center;color: blue; font-family: 'Source Sans 3', sans-serif ; font-weight: 1500; width: 100%; font-size: 25px "
+            Text="DANH SÁCH CHỨC NĂNG">
+        </RadzenLabel>
+    </div>
+</div>
+<div class="row" style="display:flex;justify-content:space-between;margin-bottom:5px">
+    <div>
+        <RadzenButton Text="Thêm mới" Click="args => Add()" Style="margin-left:15px" />
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-md-12 col-lg-8" style="padding: 0px">
+            <RadzenCard Style="padding: 20px 6px;">
+                <RadzenTree Style="height: 640px; width: 100%; margin-top: 10px">
+                    @renderFeature(null, "")
+                </RadzenTree>
+            </RadzenCard>
+        </div>
+        <div class="col-12 col-md-12 col-lg-4">
+            @if (TuyChinhChucNang == true)
+            {
+                <ChucNang_Detail Record="@ChucNangThaoTac" ReturnChucNang="@(async arg => {
+                                                                                  TuyChinhChucNang = false;
+                                                                                  if (arg != null)
+                                                                                  {
+                                                                                      listFeature=await apiService.GetAll<tbChucNang>("api/chucnang/getallnopaged");
+                                                                                  }
+                                                                              })" />
+            }
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+
+
+    List<tbChucNang> listFeature = new List<tbChucNang>();
+    tbChucNang ChucNangThaoTac = new tbChucNang();
+    bool TuyChinhChucNang = false;
+    /// <summary>
+    /// Phương thức thêm một chức năng cùng cấp
+    /// </summary>
+    /// <param name="ChucNangChon"></param>
+    void ThemChucNangCungCap(tbChucNang ChucNangChon)
+    {
+        ChucNangThaoTac = new tbChucNang();
+        ChucNangThaoTac.ChucNangCha = ChucNangChon.ChucNangCha;
+        TuyChinhChucNang = true;
+    }
+
+    /// <summary>
+    /// Phương thức thêm một chức năng con của một chức năng
+    /// </summary>
+    /// <param name="ChucNangChon"></param>
+    void ThemChucNangCon(tbChucNang ChucNangChon)
+    {
+        ChucNangThaoTac = new tbChucNang();
+        ChucNangThaoTac.ChucNangCha = ChucNangChon.IdChucNang;
+        TuyChinhChucNang = true;
+    }
+
+    void ChinhSuaChucNang(tbChucNang ChucNangChon)
+    {
+        ChucNangThaoTac = ChucNangChon;
+        TuyChinhChucNang = true;
+    }
+
+    async void DeleteDown(tbChucNang ChucNangChon)
+    {
+        //Chọn các chức năng con của chức năng được chọn
+        string lamda = "p=>p.ChucNangCha==" + ChucNangChon.IdChucNang;
+        List<tbChucNang> listChucNangCon = await apiService.GetAll<tbChucNang>("api/chucnang/getallnopaged", lamda);
+
+        //Xóa các chức năng con theo đệ quy
+        listChucNangCon.ForEach(item =>
+        {
+            DeleteDown(item);
+        });
+
+        //Xóa chức năng được chọn
+        lamda = "(p=>p.IdChucNang==" + ChucNangChon.IdChucNang + ")";
+        apiService.Delete<tbChucNang>("api/chucnang", lamda);
+
+        //Chọn lại danh sách chức năng sau khi khóa và hiển thị lại
+        listFeature = await apiService.GetAll<tbChucNang>("api/chucnang/getallnopaged");
+        renderFeature(null, "");
+        StateHasChanged();
+    }
+
+    async void XoaChucNang(tbChucNang ChucNangChon)
+    {
+        var confirmResult = await dialog.Confirm
+        (
+        "Chắc chắn muốn xóa?",
+        "Xác nhận xoá",
+        new ConfirmOptions()
+        {
+            OkButtonText = "Đồng ý",
+            CancelButtonText = "Hủy",
+        }
+        );
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            DeleteDown(ChucNangChon);
+        }
+    }
+
+    async void DoiCho(tbChucNang src, tbChucNang des)
+    {
+        int tmp = (int) src.STT;
+        src.STT = des.STT;
+        des.STT = tmp;
+        apiService.Update<tbChucNang>("api/chucnang", src);
+        apiService.Update<tbChucNang>("api/chucnang", des);
+        listFeature = await apiService.GetAll<tbChucNang>("api/chucnang/getallnopaged");
+    }
+
+    RenderFragment renderFeature(int? Parent,  string STT)
+    {
+        List<tbChucNang> list = listFeature.Where(item => item.ChucNangCha == Parent).OrderBy(item => item.STT).ToList();
+        return
+            @<div>
+                @for (int i = 0; i < list.Count; i++)
+                {
+                    tbChucNang tmp = list[i];
+                    int Index = listFeature.IndexOf(tmp);
+                    List<string> arr = STT.Split(".").ToList();
+                    if (arr[arr.Count - 1] == "")
+                    {
+                        arr[arr.Count - 1] = (1 + i).ToString();
+                    }
+                    else
+                    {
+                        arr.Add((1 + i).ToString());
+                    }
+
+                    <RadzenTreeItem>
+                        <Template>
+                            <div class="container-fluid chuc-nang">
+                                <div class="row">
+                                    <div class="col-7" style="padding: 0px">
+                                        @(String.Join(".",arr) + ". " + tmp.TenChucNang)
+                                    </div>
+                                    <div class="col-5 thao-tac-chuc-nang" style="padding: 0px">
+                                        <RadzenButton Icon="edit" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Warning"
+                                            Click="args => ChinhSuaChucNang(tmp)" />
+                                        <RadzenButton Icon="delete" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Danger"
+                                            Click="args => XoaChucNang(tmp)" />
+                                        <RadzenButton Size="ButtonSize.Small" Icon="format_list_bulleted_add"
+                                            Click="args => ThemChucNangCungCap(tmp)"></RadzenButton>
+                                        <RadzenButton Size="ButtonSize.Small" Icon="forms_add_on" Click="args => ThemChucNangCon(tmp)">
+                                        </RadzenButton>
+                                        <RadzenButton Icon="arrow_drop_down" Size="ButtonSize.Small"
+                                            Disabled="list.IndexOf(tmp)==list.Count - 1"
+                                            Click="args =>  DoiCho(tmp, list[list.IndexOf(tmp) + 1])" />
+                                        <RadzenButton Icon="arrow_drop_up" Size="ButtonSize.Small" Disabled="list.IndexOf(tmp)==0"
+                                            Click="args => DoiCho(list[list.IndexOf(tmp) - 1], tmp)" />
+                                    </div>
+                                </div>
+                            </div>
+                        </Template>
+                        <ChildContent>
+                            @renderFeature(tmp.IdChucNang,  String.Join(".", arr))
+                        </ChildContent>
+                    </RadzenTreeItem>
+                }
+            </div>
+            ;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        listFeature = await apiService.GetAll<tbChucNang>("api/chucnang/getallnopaged");
+    }
+    void Add()
+    {
+        StateHasChanged();
+    }
+}

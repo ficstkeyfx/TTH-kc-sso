@@ -1,0 +1,53 @@
+@inject NavigationManager UriHelper
+<li class="@GetMenuClass()">
+    <div class="iocn-link">
+        <a href="javascript:void(0)" @onclick=@navigateMenu>
+            <i class=@Icon></i>
+            <span class="link_name">@(isClose == false ? Name : "")</span>
+        </a>
+        @if (SubMenus != null)
+        {
+            <i class='bx bxs-chevron-down arrow level-@Level' @onclick=@toggleSubMenus></i>
+        }
+    </div>
+    @if (SubMenus != null)
+    {
+        <ul class="@(SubMenus == null ? "sub-menu blank" : "sub-menu")">
+            @SubMenus
+        </ul>
+    }
+</li>
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string Path { get; set; } = "";
+    [Parameter] public RenderFragment? SubMenus { get; set; } = null;
+    [Parameter] public string Icon { get; set; } = "";
+    [Parameter] public bool isClose { get; set; } = false;
+    [Parameter] public int Level { get; set; } = 1;
+    string subMenuMode = "";
+
+    private string GetMenuClass()
+    {
+        var classes = new List<string>();
+        if (!string.IsNullOrEmpty(subMenuMode))
+            classes.Add(subMenuMode);
+        if (Level > 1)
+            classes.Add($"menu-level-{Level}");
+        return string.Join(" ", classes);
+    }
+
+    protected void toggleSubMenus()
+    {
+        subMenuMode = subMenuMode == "" ? "showMenu" : "";
+        StateHasChanged();
+    }
+
+    protected void navigateMenu()
+    {
+        if (!string.IsNullOrEmpty(Path))
+        {
+            UriHelper.NavigateTo(Path);
+        }
+    }
+}

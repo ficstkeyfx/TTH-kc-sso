@@ -1,0 +1,77 @@
+@page "/KhoaTaiKhoan"
+@using QLNguoiDung.Models
+
+@using QLNguoiDung.Components
+@inject dbQLNguoiDungContext dbContext
+@inject NavigationManager UriHelper
+@inject NotificationService notificationService
+@inject ApiServices apiServices
+<style>
+    .rz-label {
+        margin-bottom: 0;
+        font-weight: bold;
+    }
+
+    .rz-column-title-content {
+        font-weight: bold;
+    }
+</style>
+
+<InlineAPI @ref=grd TItem="tbUser" TableTitle="DANH SÁCH NGƯỜI DÙNG" query=@query
+           HasAddButton=false HasAddRowAfter=false HasDeleteButton=false
+           OnUpdate="(data => Update((tbUser)data))">
+    <MoreColumns>
+        <RadzenDataGridColumn TItem="tbUser" Title="Tên tài khoản" TextAlign="TextAlign.Left" Sortable="false"
+                              Width="200px" Property="UserName" Frozen="true">
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="tbUser" Title="Họ và tên người dùng" TextAlign="TextAlign.Left" Sortable="false"
+                              Width="100%" Property="FullName" Frozen="true">
+        </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="tbUser" Property="LockoutEnabled" Title="Khóa tài khoản" TextAlign="TextAlign.Center" Sortable="false"
+                                  Filterable="false" Width="170px">
+                <Template Context="ctx">
+                <RadzenCheckBox @bind-Value="ctx.KhoaTaiKhoan" Disabled="true" TValue="bool" />
+                </Template>
+            <EditTemplate Context="ctx">
+                <RadzenCheckBox @bind-Value="ctx.KhoaTaiKhoan" Disabled="false" TValue="bool" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+    </MoreColumns>
+</InlineAPI>
+
+@code {
+    List<tbUser> lstUser;
+    InlineAPI<tbUser> grd;
+    string query;
+    tbUser user = new tbUser();
+    List<TypeDrop> lstNhom = new List<TypeDrop>();
+    protected override async Task OnInitializedAsync()
+    {
+        lstNhom = dbContext.tbNhoms.Select(p => new TypeDrop { Name = p.TenNhom, Id = p.IdNhom }).ToList();
+        query = "api/user/getallpaged";
+        //query = dbContext.tbUsers.AsQueryable();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == true)
+        {
+            // query = dbContext.tbUsers.AsNoTracking().AsQueryable();
+            // await grd.ForceRefresh(query);
+            StateHasChanged();
+        }
+    }
+    protected async Task Update(tbUser record)
+    {
+        try
+        {
+            dbContext.tbUsers.Update(record);
+            await dbContext.SaveChangesAsync();
+            await grd.ReloadTable();
+            notificationService.Notify(NotificationSeverity.Success, "Cập nhật thành công", null, duration: 2000);
+        }
+        catch
+        {
+            notificationService.Notify(NotificationSeverity.Error, "Lỗi khi lưu dữ liệu", null, duration: -1);
+        }
+    }
+}

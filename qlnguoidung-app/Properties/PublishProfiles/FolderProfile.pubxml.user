@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+https://go.microsoft.com/fwlink/?LinkID=208121.
+-->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>D:\DTCB.22.09.2024\qlnguoidung\qlnguoidung\bin\Release\net7.0\publish\</_PublishTargetUrl>
+    <History>True|2025-04-20T03:42:45.9439264Z||;True|2025-03-27T01:20:18.9072596+07:00||;True|2025-03-25T21:10:05.6777483+07:00||;True|2025-03-25T20:47:26.7401660+07:00||;True|2025-03-25T18:42:54.5491630+07:00||;True|2025-03-25T17:44:16.0074834+07:00||;True|2025-03-24T22:47:40.7521287+07:00||;True|2025-03-24T22:46:24.9815638+07:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,162 @@
+@using QLNguoiDung.Models
+@inject dbQLNguoiDungContext dbAccount
+@inject Radzen.DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@inject IJSRuntime JSRuntime
+@inject ApiServices apiService
+@inject HttpClient http
+
+@using Microsoft.EntityFrameworkCore
+@using QLNguoiDung.Components
+@using QLNguoiDung.Services
+
+<style>
+    .rz-textbox {
+        width: 100%;
+    }
+</style>
+<style>
+    .rz-dialog-titlebar {
+        margin-left: 20px;
+        margin-bottom: -20px;
+    }
+</style>
+
+@if (!Loading)
+{
+    <Form TItem="tbSystemUser" Record=@user OnSubmit=@(args => Submit((tbSystemUser)args))>
+        <MoreForms>
+            <div class="row">
+                <FormField Text="Tên đăng nhập" Size="6">
+                    <RadzenTextBox Name="UserName" @bind-Value=@user.UserName Style="Width: 100%" />
+                    <RadzenRequiredValidator Component="UserName" Text="Bắt buộc" />
+                </FormField>
+
+               
+                <FormField Text="Họ và tên" Size="6">
+                    <RadzenTextBox @bind-Value=@user.FullName />
+                </FormField>
+                <FormField Text="email" Size="6">
+                    <RadzenTextBox @bind-Value=@kcEmail Style="Width:100%"/>
+                </FormField>
+                <FormField Text="Mật khẩu" Size="6">
+                    <RadzenTextBox @bind-Value=@kcPassword Style="Width:100%" />
+                </FormField>                            
+                <FormField Text="Thuộc nhóm người dùng" Size="12">
+                    <RadzenDropDown AllowClear="true" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                Data=@lstGroup ValueProperty="IdNhom" TextProperty="TenNhom" @bind-Value=@user.IdNhom Style="Width: 100%" />
+                </FormField>
+                <div class="rz-p-12 rz-text-align-left">
+                    <RadzenCheckBox @bind-Value=@createLDAPUser Name="CheckBox1" />
+                    <RadzenLabel Text="Tạo cả tài khoản LDAP" Component="CheckBox1" class="rz-ms-2" />
+                </div>
+            </div>
+        </MoreForms>
+    </Form>
+}
+
+@code {
+    [Parameter] public tbSystemUser Record { get; set; }
+    bool Loading = false;
+    tbSystemUser user = new tbSystemUser();
+    List<tbNhom> lstGroup = new List<tbNhom>();
+    bool createLDAPUser = false;
+    string DonVi = "";
+    string kcEmail = "";
+    string kcPassword = "";
+    protected override async Task OnInitializedAsync()
+    {
+        string apiNhomPath = "api/nhom/getallnopaged";
+        if (Record == null || Record.IdUser == 0)
+        {
+            user = new tbSystemUser();
+        }
+        else
+        {
+            user = Record;
+        }
+         lstGroup = (await apiService.GetAll<tbNhom>(apiNhomPath)).Select(p=> new tbNhom {IdNhom=p.IdNhom,TenNhom=p.TenNhom +" (" + p.MoTa + ")" }).ToList();
+        // lstCanBo = await apiService.GetAll<tbCanBo>(apiCanBoPath);
+        // DonVi = lstCanBo.FirstOrDefault(p => p.IdCanBo == user.IdCanBo)?.DonVi;
+
+    }
+    private void OnChange(object args)
+    {
+        // DonVi = lstCanBo.FirstOrDefault(p => p.IdCanBo == user.IdCanBo)?.DonVi;
+    }
+    protected async Task Submit(tbSystemUser objUser)
+    {
+        try
+        {
+            if (Record.IdUser == 0)
+            {
+                string seqName = "seq_tbSystemUser";
+                objUser.IdUser = await apiService.GetId<int>($"api/systemuser/getid", seqName);
+
+                // 1. Lưu user vào DB (giữ nguyên)
+                await apiService.Create<tbUser>($"api/user", objUser);
+
+                // 2. Tạo user trong Keycloak (dùng thêm Email & Password)
+
+            var kcUser = new CreateUserRequest
+            {
+                Username  = objUser.UserName,
+                Email     = kcEmail,
+                FirstName = objUser.FullName.Split(" ").FirstOrDefault() ?? "",
+                LastName  = string.Join(" ", objUser.FullName.Split(" ").Skip(1)),
+                Password  = kcPassword
+            };
+
+            // gọi API Keycloak trực tiếp, nhận JSON trả về
+            var response = await http.PostAsJsonAsync("api/CreateUser", kcUser);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<CreateUserResponse>();
+                if (result != null && result.Success)
+                {
+                    notificationService.Notify(NotificationSeverity.Success,
+                        "Keycloak", "Tạo user Keycloak thành công", duration: 3000);
+                }
+                else
+                {
+                    notificationService.Notify(NotificationSeverity.Error,
+                        "Keycloak", $"Tạo user Keycloak thất bại: {result?.Message}", duration: 4000);
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                notificationService.Notify(NotificationSeverity.Error,
+                    "Keycloak", $"API trả về lỗi: {response.StatusCode} - {error}", duration: 4000);
+            }
+
+            }
+            else
+            {
+                // Update DB như cũ
+                await apiService.Update<tbUser>("api/systemuser", objUser);
+            }
+        }
+        catch (Exception ex)
+        {
+            notificationService.Notify(NotificationSeverity.Error, "Thông báo:", ex.Message, duration: 4000);
+        }
+    }
+        public class CreateUserRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class CreateUserResponse
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string? UserId { get; set; }
+    }
+}

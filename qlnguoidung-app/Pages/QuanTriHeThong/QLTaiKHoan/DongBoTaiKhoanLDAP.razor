@@ -1,0 +1,159 @@
+@page "/admin/DongBoTaiKhoanLDAP"
+@using QLNguoiDung.Models 
+@inject DialogService dialog
+@using QLNguoiDung.Components
+@using QLNguoiDung.Services
+@inject NavigationManager UriHelper
+@inject dbQLNguoiDungContext dbContext
+@inject NotificationService notificationService
+@using System.DirectoryServices.AccountManagement
+@using System.DirectoryServices
+<div class="row">
+    <div class="col-6">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" AllowPaging="true"
+                        PageSizeOptions="@pageSizeOptions" @ref=@GrdTable
+                        PagingSummaryFormat="@pagingSummaryFormat" ShowPagingSummary="@showPagerSummary"
+                        Data="@listData" Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+                        PageSizeText="Bản ghi trên một trang" EmptyText="Không có dữ liệu">
+            <Columns>
+                <RadzenDataGridColumn TItem="tbUser" Title="STT" Sortable="false" Width="80px"
+                                      TextAlign="TextAlign.Center" Frozen="true">
+                    <Template Context="ctx">
+                        @(listData.IndexOf(ctx) + 1 + 1 + GrdTable.CurrentPage * GrdTable.PageSize)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn Property="@nameof(user.UserName)" Title="First Name" Frozen="true" Width="160px" />
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+    <div class="col-6">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" AllowPaging="true"
+                        PageSizeOptions="@pageSizeOptions" @ref=@GrdTable1
+                        PagingSummaryFormat="@pagingSummaryFormat" ShowPagingSummary="@showPagerSummary"
+                        Data="@listData1" Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+                        PageSizeText="Bản ghi trên một trang" EmptyText="Không có dữ liệu">
+            <Columns>
+                <RadzenDataGridColumn TItem="tbUser" Title="STT" Sortable="false" Width="80px"
+                                      TextAlign="TextAlign.Center" Frozen="true">
+                    <Template Context="ctx">
+                        @(listData1.IndexOf(ctx) + 1 + 1 + GrdTable1.CurrentPage * GrdTable1.PageSize)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn Property="@nameof(user.UserName)" Title="First Name" Frozen="true" Width="160px" />
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+</div>
+
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-lg-12 d-flex align-items-center justify-content-center" style="margin-top: 20px;margin-bottom: 10px;width: 100%; background-color: transparent;
+                height: 8%;">
+                <RadzenButton Icon="save" Style="margin-right:1%;"
+                          ButtonStyle="ButtonStyle.Primary" Text="Lưu dữ liệu" Click="@(args => Submit())">
+                </RadzenButton>
+
+            <RadzenButton Icon="highlight_off" ButtonStyle="ButtonStyle.Danger" Text="Thoát"
+                          Click="@(args => CloseDialog())">
+            </RadzenButton>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    RadzenDataGrid<tbUser> GrdTable = default!;
+    RadzenDataGrid<tbUser> GrdTable1 = default!;
+    List<tbUser> listData = default!;
+    List<tbUser> listData1 = default!;
+    string pagingSummaryFormat = "Trang {0} / {1} (Tổng số {2} bản ghi)";
+    IEnumerable<int> pageSizeOptions = new int[] {10, 20 };
+    bool isLoading = false;
+    bool showPagerSummary = true;
+    int count;
+    tbUser objUser;
+    
+    tbUser user = new tbUser();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        TypeDrop o = new TypeDrop();
+        listData = getAllLDAPUsers();
+        listData1 = dbContext.tbUsers.ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == true)
+        {
+            //     //Người dùng là quản trị nhóm (người dùng thường không được sử dụng chức năng này)
+            //     lstNhomNguoiDung = dbContext.tbNhoms.Where(p => p.IdNhom == user.IdNhomQuanTri).Select(p => new TypeDrop { Name = p.TenNhom, Id = p.IdNhom }).ToList();
+            //     if (lstNhomNguoiDung.Count==1)
+            //     {
+            //         IdNhom = lstNhomNguoiDung[0].Id;
+            //         //Lấy danh sách người dùng phần mèm
+            //         List<vAspNetUser> lst = dbContext.tbUsers.Where(p=>p.IdNhom==IdNhom).Select(p => new vAspNetUser { UserName = p.UserName, FullName = p.FullName, IdCanBo = p.IdCanBo, IdDonVi = p.IdDonVi, IdNhom = p.IdNhom }).ToList();
+            //         Target = new vAspNetUser[] { lst[0] };
+            //         OriginTarget = new vAspNetUser[] { lst[0] };
+            //         for (int i = 1; i < lst.Count; ++i)
+            //         {
+            //             Target = Target.Concat(new vAspNetUser[] { lst[i] });
+            //             OriginTarget = OriginTarget.Concat(new vAspNetUser[] { lst[i] });
+            //         }
+
+            //         //Loại bỏ những người dùng đã có trong danh sách người dùng phần mềm
+            //         lst = Source.ToList();
+            //         Source = new vAspNetUser[] { lst[0] };
+            //         for (int i= 1; i< lst.Count();++i)
+            //         {
+            //             bool found = false;
+            //             foreach(var o in Target)
+            //             {
+            //                 if (o.UserName.ToLower() ==lst[i].UserName.ToLower())
+            //                 {
+            //                     found = true;
+            //                     break;
+            //                 }
+            //             }
+            //             if(!found)
+            //                 Source = Source.Concat(new vAspNetUser[] { lst[i] });
+            //         }
+            //     }
+            // StateHasChanged();
+        }
+    }
+
+    protected async Task CloseDialog()
+    {
+        dialog.Close();
+    }
+
+    protected async Task Submit()
+    {
+    }
+    private List<tbUser> getAllLDAPUsers()
+    {
+        List<tbUser> lstUser = new List<tbUser>();
+        tbUser usr;
+        using (var Context = new PrincipalContext(System.DirectoryServices.AccountManagement.ContextType.Domain, "C500.edu.vn", "nghiand", "@Abc123"))
+        {
+            using (var searcher = new PrincipalSearcher(new UserPrincipal(Context)))
+            {
+                foreach(var result in searcher.FindAll())
+                {
+                    DirectoryEntry de = result.GetUnderlyingObject() as DirectoryEntry;
+                    if(de.Properties["sAMAccountName"].Value!=null)
+                    {
+                        usr = new tbUser();
+                        usr.UserName = de.Properties["sAMAccountName"].Value.ToString();
+                        lstUser.Add(usr);
+                    }
+                }
+            }
+        };
+        return lstUser;
+    }
+}
+

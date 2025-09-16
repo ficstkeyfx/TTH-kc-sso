@@ -1,0 +1,477 @@
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@inject HttpClient Http
+@inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
+@using Microsoft.AspNetCore.SignalR.Client
+@using AutoMapper
+@using Minio
+@using Minio.DataModel.Args
+@using System.Reactive.Linq
+
+<style>
+    .rz-fileupload {
+        border-radius: 5px;  
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        
+    }
+
+    .rz-fileupload-buttonbar {
+        background-color: var(--rz-primary);
+        color: white; 
+        border: none;   
+        width: fit-content;  
+        padding: 0rem;  
+        margin: auto;     
+        display: flex;
+        align-items: center;
+    }
+
+    .rz-fileupload-choose.rz-button
+    {
+        padding: 0.55rem;
+        background-color: #2ECC71 !important;
+        border-color: #27AE60 !important;
+        color: white !important;
+    }
+
+    .rz-button-text
+    {
+        font-size: 1rem;
+        margin-left: 0.4rem;
+
+    }
+    .notranslate.rz-button-icon-left.rzi
+    {
+        font-size:1.4rem;
+    }
+
+    .notranslate.rz-fileupload
+    {
+        font-size 1rem;
+    }
+    .rz-button.rz-button-md.rz-variant-filled
+    {
+        padding: 0.55rem;
+    }
+    .rz-fileupload-upload {
+        background-color: #2ECC71 !important;
+        border-color: #27AE60 !important;
+        color: white !important;
+    }
+
+    th
+    {
+        display: none;
+    }
+
+</style>
+
+<div class="row" style="margin-bottom:0.5rem; margin-top: 0.5rem; margin-left:0.1rem;margin-right:0.1rem; padding:0.5rem; background: #f0f0f4; border: #f0f0f4; border-style: solid; border-width: thin;">
+    <div class="col-md-12" style="display: flex; justify-content: space-between;">
+        <div class="rz-fileupload">
+            <RadzenButton Icon="cached" ButtonStyle="ButtonStyle.Primary" Text="" Click="@(args => Refresh())"></RadzenButton>
+
+            <RadzenUpload class="rz-fileupload-upload"
+                Url="upload/multiple"
+                Multiple="true"
+                Progress="@((args) => OnProgress(args, "Đang tải lên:"))"
+                Complete="@(arg => Complete(arg.RawResponse))"
+                Icon="upload_2"
+                ChooseText="Thêm file">
+            </RadzenUpload>
+
+            <RadzenLabel Style="font-size:17pt; font-weight:bold" Text="                         DANH SÁCH TÀI LIỆU"/>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="margin-bottom:0.5rem; margin-top: 0; margin-left:0.1rem;margin-right:0.1rem; padding:0.5rem; background: #f0f0f4; border: #f0f0f4; border-style: solid; border-width: thin;">
+    <div style="display: flex; justify-content: center; align-items: center;">
+        <Waiting Message="Xin đợi.." LoadingProgress="@loadingProgress" ShowStatusWait="@showStatusWait"/>
+    </div>
+    <RadzenDataGrid @ref="@grid" TItem="tbFile"
+                Data=@listData LoadData=@LoadData IsLoading=@isLoading 
+                Count="@count"
+                PageSizeOptions="@pageSizeOptions" PagingSummaryFormat="@pagingSummaryFormat"
+                Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+                GridLines="DataGridGridLines.Both" 
+                PageSizeText="File/Trang"
+                AllowFiltering="@allowFiltering" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" 
+                FilterMode="FilterMode.Simple" Filter="OnFilter" 
+                LogicalFilterOperator="LogicalFilterOperator.And"
+                AllowSorting="true" AllowPaging="@allowPaging" 
+                ColumnWidth="200px"
+                SelectionMode="DataGridSelectionMode.Multiple"
+                >
+        <Columns>
+            <RadzenDataGridColumn TItem="tbFile" Title="STT" Sortable="false" Width="30px"
+                TextAlign="TextAlign.Center">
+                <Template Context="ctx">
+                    @(listData.IndexOf(ctx) + 1 + grid.CurrentPage * grid.PageSize)
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="tbFile" Title="Tên file" TextAlign="TextAlign.Left" Sortable="false"
+                                    Width="300px" Property="filename" Filterable="true" Frozen="true">          
+            </RadzenDataGridColumn>
+
+            @if (HasOperation)
+                {
+                    <RadzenDataGridColumn TItem="tbFile" Title="Thao tác"  TextAlign="TextAlign.Center" Width="70px">
+                        <Template Context="ctx">
+                            @if(!filesInMinio.Any(f => f.filename == ctx.loaiFile + "/" + ctx.hash + Path.GetExtension(ctx.filename)))
+                            {
+                                <RadzenButton @onclick:stopPropagation Icon="edit" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Warning" Disabled="true" Click="@(args => EditRow(ctx))" />
+                                <RadzenButton @onclick:stopPropagation Icon="visibility" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Info" Disabled="true" Click="@(args => PreviewRow(ctx))" />
+                                <RadzenButton @onclick:stopPropagation Icon="download" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Success" Disabled="true" Click="@(args => DownloadRow(ctx))" />
+                            }
+                            else{
+                                @if(ctx.loaiFile == "file-van-ban")
+                                {
+                                    <RadzenButton @onclick:stopPropagation Icon="edit" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Warning" Click="@(args => EditRow(ctx))" />
+                                }else{
+                                    <RadzenButton @onclick:stopPropagation Icon="edit" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Warning" Disabled="true" Click="@(args => EditRow(ctx))" />
+                                }
+                                <RadzenButton @onclick:stopPropagation Icon="visibility"Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Info" Click="@(args => PreviewRow(ctx))" />
+                                <RadzenButton @onclick:stopPropagation Icon="download" Style="margin-right:5px" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Success" Click="@(args => DownloadRow(ctx))" />
+                            }
+                                <RadzenButton @onclick:stopPropagation Icon="delete_outline" Shade="Shade.Dark" ButtonStyle="ButtonStyle.Danger" Click="@(args => DeleteRow(ctx))" />
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+        </Columns>
+    </RadzenDataGrid>
+
+</div>
+
+
+@code{
+    [CascadingParameter] private Task<AuthenticationState> authenticationState { get; set; } = default!;
+    @* Token từ ngoài truyền vào *@
+    [Parameter] public string token { get; set; } = default!;
+    [Parameter] public bool xoaDaChon { get; set; } = true;
+    RadzenDataGrid<tbFile> grid = new(); 
+    [Parameter] public string query { get; set; } = default!;
+    List<tbFile> listData = default!;
+    [Parameter] public string? lamda { get; set; }
+    [Parameter] public RenderFragment? MoreColumns { get; set; } = null;
+    [Parameter] public bool HasOperation { get; set; } = true;
+    bool isLoading = false;
+
+    @*Minio files trên máy*@
+    private IMinioClient? _minioClient;
+    private List<tbFile> filesInMinio = new List<tbFile>();
+    private string bucketName = "2025";
+
+    @* Thêm form để hiện chỉnh sửa và thêm mới *@
+    [Parameter] public RenderFragment<tbFile> FormDialog { set; get; } = default!;
+
+
+
+
+
+
+
+    @* Cấu hình realtime *@
+    [Parameter] public string UriConnection { get; set; } = "";
+    [Parameter] public int receiverConnection { get; set; } = 0;
+    [Parameter] public int senderConnection { get; set; } = 0;
+    [Parameter] public string notificationConnection { get; set; } = "Có thay đổi mới";
+    private HubConnection hubConnection = default!;
+    @* Cấu hình width và height *@
+    [Parameter] public string widthForm { get; set; } = "100vw";
+    [Parameter] public string heightForm { get; set; } = "100vh";
+    @* Hiển thị button close tại form *@
+    [Parameter] public bool ShowClose { get; set; } = true;
+    Task<dynamic> OpenAsync(string title, RenderFragment<tbFile> content, tbFile record) =>
+    dialog.OpenAsync<WrapperForm<tbFile>>(title,
+    new Dictionary<string, object?> { { "Content", content }, { "Record", record } },
+    new DialogOptions() { Width = @widthForm, Height = @heightForm, ShowClose = ShowClose });
+
+
+
+
+    <!-- #CẤU HÌNH CHO CÁC HÀM của CÁC BUTTON TRONG CỘT CHI TIẾT -->
+    [Parameter] public EventCallback<tbFile> OnEdit { set; get; }
+    [Parameter] public EventCallback<tbFile> OnPreview { set; get; }
+    [Parameter] public EventCallback<tbFile> OnDownload { set; get; }
+    [Parameter] public EventCallback<tbFile> OnDelete { set; get; }
+    [Parameter] public EventCallback<tbFile> OnAdd { set; get; }
+    [Parameter] public EventCallback<List<tbFile>> OnReloadData { set; get; }
+
+
+    int count;
+    string pagingSummaryFormat = "Trang {0} / {1} (Tổng số {2} bản ghi)";
+
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+    IList<int> values = new int[] { 1, 2 };
+    bool allowFiltering = false;
+    bool allowPaging = false;
+
+    IEnumerable<string> fileTypeFFilteringSelection = new List<string>();
+    List<string> fileTypeFFilter = new List<string> {"file-van-ban", "file-am-thanh", "file-video", "file-chuong-trinh", "file-anh", "file-khac"};
+
+    void FilteringController()
+    {
+        if(allowFiltering == false)
+        {
+            allowFiltering = true;
+        }
+        else{
+            allowFiltering = false;
+            lamda = null;
+            fileTypeFFilteringSelection = new List<string>();
+            grid.Reset();
+        }
+    }
+    void OnFilter(DataGridColumnFilterEventArgs<tbFile> args)
+    {
+        if (args.FilterValue != null)
+        {
+            var typeCode = Type.GetTypeCode(args.FilterValue.GetType());
+
+            if (typeCode == TypeCode.Int32 || typeCode == TypeCode.Double || typeCode == TypeCode.Decimal || typeCode == TypeCode.Int64 || typeCode == TypeCode.Single)
+            {
+                lamda = $"{args.Column.Property} == {args.FilterValue}";
+            }
+            else
+            {
+                lamda = $"{args.Column.Property}.Contains(\"{args.FilterValue}\")";
+            }
+        }
+        else
+        {
+            lamda = null;
+        }
+    }
+    void OnfileTypeFFilteringSelectionChange(object value)
+    {
+        if (fileTypeFFilteringSelection != null && fileTypeFFilteringSelection.Any())
+        {
+            var selectedTypes = string.Join(" || ", fileTypeFFilteringSelection.Select(type => $"loaiFile.Contains(\"{type}\")"));
+            grid.Reset();
+            lamda = selectedTypes;
+        }
+        else
+        {
+            lamda = null;
+        }
+    }
+
+    <!-- #UploadFile-->
+    [Parameter] public List<FileUpload> uploadFileList { get; set; } = new List<FileUpload>();
+    [Parameter] public EventCallback<List<FileUpload>> uploadFileListChanged { get; set; }
+    bool showStatusWait = true;
+    int loadingProgress;
+    //string moreInfo;
+    void OnProgress(UploadProgressArgs args, string name)
+    {
+        /////////////////////////
+        //Hiển trị trạng thái đợi
+        showStatusWait = true;
+        /////////////////////////
+        
+        //this.moreInfo = $"%'{name}'/ {args.Loaded} of {args.Total} bytes.";
+        this.loadingProgress = args.Progress;
+    }
+    protected async void Complete(string urls)
+    {
+
+        List<FileUpload> listUrls = JsonConvert.DeserializeObject<List<FileUpload>>(urls) ?? new List<FileUpload>();
+        uploadFileList.AddRange(listUrls);
+        await uploadFileListChanged.InvokeAsync(uploadFileList);
+
+        ///////////////////////////////
+        //Hết hiển thị trạng thái đợi
+        showStatusWait = false;
+        StateHasChanged();
+        ////////////////////////////
+        
+    }
+
+    <!-- #endUploadFile -->
+
+
+    public async Task Refresh()
+    {
+        await grid.Reload();
+    }
+
+    public async Task ForceRefresh(string data)
+    {
+        query = data;
+        await grid.Reload();
+    }
+
+
+    <!-- #CÁC NÚT TRONG CỘT CHI TIẾT -->
+    protected async Task EditRow(tbFile record)
+    {
+        await OnEdit.InvokeAsync(record);
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+    }
+    protected async Task PreviewRow(tbFile record)
+    {
+        await OnPreview.InvokeAsync(record);
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+    }
+    protected async Task DownloadRow(tbFile record)
+    {
+        await OnDownload.InvokeAsync(record);
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+    }
+    protected async Task DeleteRow(tbFile record)
+    {
+        var confirmResult = await dialog.Confirm
+        (
+        "Chắc chắn muốn xóa bản ghi ?",
+        "Xác nhận xoá",
+        new ConfirmOptions()
+            {
+                OkButtonText = "Đồng ý",
+                CancelButtonText = "Hủy",
+                Width = "400px"
+            }
+        );
+
+        if (confirmResult.HasValue && confirmResult.Value)
+        {
+            await OnDelete.InvokeAsync(record);
+        }
+
+        await hubConnection.SendAsync("SendMessage", senderConnection);
+    }
+    <!-- #END CÁC NÚT TRONG CỘT CHI TIẾT -->
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _minioClient = new MinioClient()
+                .WithEndpoint(Configuration.GetConnectionString("MinioEndpoint"))
+                .WithCredentials(
+                    Configuration.GetConnectionString("MinioAccessKey"), 
+                    Configuration.GetConnectionString("MinioSecretKey"))
+                .WithSSL(false)
+                .Build();
+
+            filesInMinio = await ListFilesInBucket(bucketName);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing MinioClient: {ex.Message}");
+        }
+        hubConnection = new HubConnectionBuilder().WithUrl(UriHelper.ToAbsoluteUri("/chat")).Build();
+        hubConnection.On<int>("ReceiveMessage", async (receiver) =>
+        {
+            if (receiver == senderConnection)
+            {
+                await Reset();
+            }
+        });
+        await hubConnection.StartAsync();
+    }
+        async Task Reset()
+    {
+        grid.Reset(true);
+        await grid.FirstPage(true);
+    }
+
+    private async Task<List<tbFile>> ListFilesInBucket(string bucketName)
+    {
+        var files = new List<tbFile>();
+        try
+        {
+            bool bucketExists = await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(bucketName));
+            if (!bucketExists)
+            {
+                return files;
+            }
+            var objects = _minioClient.ListObjectsAsync(new ListObjectsArgs().WithBucket(bucketName).WithRecursive(true));
+            foreach (var obj in objects)
+            {
+                files.Add(new tbFile
+                {
+                    filename = obj.Key,
+                    bucket = bucketName,
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error listing files: {ex.Message}");
+        }
+
+        return files;
+    }
+
+    async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        await Task.Yield();
+
+        var authState = await authenticationState;
+        token = authState.User.Identity?.Name ?? "";
+        Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        HttpResponseMessage response;
+        string url="";
+        filesInMinio = await ListFilesInBucket(bucketName);
+        if(query!=null)
+        {
+            if (lamda == null)
+            {
+                url = $"{query}?PageNumber={(int?)(args.Skip / grid.PageSize + 1)}&PageSize={grid.PageSize}&lamda=\" \"";
+            }
+            else
+            {
+                url = $"{query}?PageNumber={(int?)(args.Skip / grid.PageSize + 1)}&PageSize={grid.PageSize}&lamda={lamda}";
+            }
+
+            response = await Http.GetAsync(url);
+
+            ServiceResponse<PagedList<tbFile>>? data = new ServiceResponse<PagedList<tbFile>>();
+
+            if (response.IsSuccessStatusCode)
+            {
+                data = await response.Content.ReadFromJsonAsync<ServiceResponse<PagedList<tbFile>>>();
+                if (data != null && data.Data != null)
+                {
+                    count = data.Data.TotalCount;
+                    listData = data.Data.Items;
+                }
+                else
+                {
+                    count = 0;
+                    listData = new List<tbFile>();
+                    notificationService.Notify(NotificationSeverity.Error, "Thông báo:", "Lỗi khi xử lý dữ liệu", duration: 2000);
+                }
+            }
+            else
+            {
+                count = 0;
+                listData = default!;
+                notificationService.Notify(NotificationSeverity.Error, $"Thông báo:", "Lỗi khi lấy dữ liệu", duration: 2000);
+            }
+        }
+        else
+        {
+            count = 0;
+            listData = default!;
+        }
+        if(listData.Count() <= 10)
+        {
+            allowPaging = false;
+        }
+        else{
+            allowPaging = true;
+        }
+        isLoading = false;
+        await OnReloadData.InvokeAsync(listData);
+    }
+
+}

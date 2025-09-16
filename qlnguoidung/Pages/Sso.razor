@@ -1,0 +1,22 @@
+@page "/sso"
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Redirect sang silent auth (prompt=none)
+        var silentUrl =
+            $"{KeycloakBase}/realms/{Realm}/protocol/openid-connect/auth" +
+            $"?client_id={Uri.EscapeDataString(ClientId)}" +
+            $"&redirect_uri={Uri.EscapeDataString(SilentCallback)}" + // SilentCallback: trang này chính là /sso-callback ở trên
+            $"&response_type=code&scope=openid&prompt=none&response_mode=query";
+
+        Navigation.NavigateTo(silentUrl, forceLoad: true);
+    }
+
+    // cấu hình giống file callback
+    private const string KeycloakBase = "http://192.168.164.145:8080";
+    private const string Realm = "TestSSO";
+    private const string ClientId = "TestSSO";
+    private const string SilentCallback = "https://localhost:7124/callback";
+}

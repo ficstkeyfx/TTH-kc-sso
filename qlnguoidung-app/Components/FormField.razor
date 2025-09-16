@@ -1,0 +1,12 @@
+<div class="@("col-" + Size)">
+    <RadzenFormField Text="@Text" Style="@("width: 100%; margin-top: 1.5rem" + EditStyle)">
+        @ChildContent
+    </RadzenFormField>
+</div>
+
+@code {
+    [Parameter] public string EditStyle { set; get; } = "";
+    [Parameter] public string Size { set; get; } = "12";
+    [Parameter] public string Text { set; get; } = "";
+    [Parameter] public RenderFragment ChildContent { set; get; } = default!;
+}

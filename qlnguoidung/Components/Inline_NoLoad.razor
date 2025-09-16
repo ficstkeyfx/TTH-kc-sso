@@ -1,0 +1,169 @@
+@typeparam TItem
+@inject DialogService dialog
+@inject NotificationService notificationService
+@inject NavigationManager UriHelper
+@using Microsoft.AspNetCore.SignalR.Client
+@using AutoMapper
+@* Hiện title của bảng *@
+<div class="row" style="margin-bottom:30px">
+    <div class="col-md-12">
+        <RadzenLabel
+            Style="text-align: center;color: rgb(10, 10, 178); font-family: 'Source Sans 3', sans-serif ; font-weight: 1500; width: 100%; font-size: 25px "
+            Text="@("DANH SÁCH " + TableTitle.ToUpper())">
+        </RadzenLabel>
+    </div>
+</div>
+<div style="justify-content:space-between;margin-bottom:5px; margin-right: 1rem">
+    <div class="col-12 col-md-4" style="padding: 0px">
+        <RadzenButton Click=@(args => AddRow()) Visible=@AddNew Text="@AddBtnCaption" Disabled=@disableAdd />
+        @if (MoreButtons != null)
+        {
+            @MoreButtons
+        }
+    </div>
+    <div class="col-12" style="margin-top:2rem">
+        <RadzenDataGrid GridLines="DataGridGridLines.Both" EditMode="DataGridEditMode.Single" Data=@listData
+            @ref=@GrdTable TItem="TItem" AllowColumnResize="true" PageSizeOptions="@pageSizeOptions"
+            ShowPagingSummary="@showPagerSummary" PagingSummaryFormat="@pagingSummaryFormat" AllowPaging="true"
+            Style="--rz-grid-header-font-size: 1rem; --rz-grid-cell-font-size: 1rem"
+            PageSizeText="Bản ghi trên một trang" RowUpdate="@OnUpdateRow" RowCreate="@OnCreateRow"
+            EmptyText="Không có dữ liệu">
+            <Columns>
+                <RadzenDataGridColumn TItem="TItem" Title="STT" Sortable="false" Width="50px"
+                    TextAlign="TextAlign.Center">
+                    <Template Context="ctx">
+                        @(listData.IndexOf(ctx) + 1 + GrdTable.CurrentPage * GrdTable.PageSize)
+                    </Template>
+                </RadzenDataGridColumn>
+                @MoreColumns
+                @if(AddNew){
+                    <RadzenDataGridColumn TItem="TItem" Title="Thao tác" TextAlign="TextAlign.Center" Width="100px">
+                    <Template Context="ctx">
+                        <RadzenButton Icon="delete_outline" ButtonStyle="ButtonStyle.Danger"
+                            Click="@(args => DeleteRow(ctx))" />
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Warning" Click="@(args => EditRow(ctx))" />
+
+                    </Template>
+                    <EditTemplate Context="ctx">
+                        <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat"
+                            Click="@((args) => SaveRow(ctx))">
+                        </RadzenButton>
+                        <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat"
+                            Click="@((args) => CancelEdit(ctx))">
+                        </RadzenButton>
+                        <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat"
+                            Shade="Shade.Lighter" Click="@(args => DeleteRow(ctx))">
+                        </RadzenButton>
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+                }
+                
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+</div>
+@code {
+    @* Title cho bảng *@
+    [Parameter] public string TableTitle { get; set; } = "";
+    @* Title cho nút thêm mới *@
+    [Parameter] public string AddBtnCaption { get; set; } = "Thêm mới";
+    @* Thêm các nút lệnh khác *@
+    [Parameter] public RenderFragment? MoreButtons { get; set; } = null;
+    @* Query từ ngoài truyền vào *@
+    [Parameter] public IQueryable<TItem> query { get; set; } = default!;
+    @* Thêm các cột trong Datagrid *@
+    [Parameter] public RenderFragment? MoreColumns { get; set; } = null;
+    @* Cấu hình hàm gọi delete ở ngoài *@
+    [Parameter] public EventCallback<TItem> OnDelete { set; get; }
+    @* Cấu hình hàm gọi create ở ngoài *@
+    [Parameter] public EventCallback<TItem> OnCreate { set; get; }
+    @* Cấu hình hàm gọi update ở ngoài *@
+    [Parameter] public EventCallback<(TItem, int)> OnUpdate { set; get; }
+    @* Cấu hình hàm gọi cancel edit ở ngoài *@
+    [Parameter] public EventCallback<TItem> OnCancelEdit { set; get; }
+    @* Cho phép add new hay không *@
+    [Parameter] public bool AddNew { set; get; } = true;
+    @* Cấu hình cho Datagrid *@
+    RadzenDataGrid<TItem> GrdTable = default!;
+    [Parameter] public List<TItem> listData { set; get; } = default!;
+    string pagingSummaryFormat = "Trang {0} / {1} (Tổng số {2} bản ghi)";
+    IEnumerable<int> pageSizeOptions = new int[] { 10, 20, 30 };
+    bool showPagerSummary = true;
+    @* Disable nút thêm mới *@
+    bool disableAdd = false;
+    int indexEdit;
+
+    protected async Task AddRow()
+    {
+        var obj = new object();
+        var config = new MapperConfiguration(cfg => cfg.CreateMap<object, TItem>());
+        IMapper mapper = config.CreateMapper();
+        TItem record = mapper.Map<TItem>(obj);
+        disableAdd = true;
+        await GrdTable.InsertRow(record);
+    }
+
+    protected async Task SaveRow(TItem record)
+    {
+        disableAdd = false;
+        await GrdTable.UpdateRow(record);
+    }
+    protected async Task DeleteRow(TItem record)
+    {
+
+        if (listData.Contains(record))
+        {
+            var confirmResult = await dialog.Confirm
+            (
+            "Chắc chắn muốn xóa " + "bản ghi" + " ?",
+            "Xác nhận xoá",
+            new ConfirmOptions()
+                {
+                    OkButtonText = "Đồng ý",
+                    CancelButtonText = "Hủy",
+                    Width = "400px"
+                }
+            );
+
+            if (confirmResult.HasValue && confirmResult.Value)
+            {
+                await OnDelete.InvokeAsync(record);
+            }
+        }
+        else
+        {
+            GrdTable.CancelEditRow(record);
+        }
+        disableAdd = false;
+
+        await GrdTable.Reload();
+
+    }
+
+    protected async Task EditRow(TItem record)
+    {
+        disableAdd = true;
+        indexEdit = listData.IndexOf(record);
+        await GrdTable.EditRow(record);
+    }
+
+    protected async Task OnCreateRow(TItem record)
+    {
+        await OnCreate.InvokeAsync(record);
+    }
+
+    protected async Task OnUpdateRow(TItem record)
+    {
+        disableAdd = false;
+        await OnUpdate.InvokeAsync((record, indexEdit));
+    }
+
+    protected async Task CancelEdit(TItem record)
+    {
+        disableAdd = false;
+        GrdTable.CancelEditRow(record);
+
+        await OnCancelEdit.InvokeAsync(record);
+    }
+
+}
