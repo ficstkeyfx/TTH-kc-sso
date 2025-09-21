@@ -18,11 +18,10 @@
 
 @code {
     // ====== Cấu hình Keycloak / App ======
-    private const string KeycloakBase = "http://192.168.164.145:8080";
+    private const string KeycloakBase = "http://10.0.26.54:8080";
     private const string Realm = "TestSSO";
     private const string ClientId = "TestSSO";
     private const string ClientSecret = "eow12rrq9YQqERnTPKabxpmU1QDyYsGG"; // public client => để rỗng
-    private const string RedirectUri = "https://localhost:7134/callback"; // phải khớp trên Keycloak
     private Dictionary<string, string> ClientSecretDic = new()
     {
         { "TestSSO", "eow12rrq9YQqERnTPKabxpmU1QDyYsGG" },

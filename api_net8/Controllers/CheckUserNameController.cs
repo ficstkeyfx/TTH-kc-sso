@@ -12,7 +12,7 @@ namespace api.UserSync
     public class UsersController : ControllerBase
     {
         private readonly ILogger<UsersController> _logger;
-        private readonly string _connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+        private readonly string _connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
 
         private readonly IKeyCloakService _keycloakRepo;
         public UsersController(ILogger<UsersController> logger)

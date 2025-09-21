@@ -19,7 +19,7 @@ namespace api.Services.KeyCloakServices
 
         private static SqlConnection _db;
         private readonly ILogger<UsersController> _logger;
-        private string _keycloakUrl= $"http://192.168.164.145:8080";
+        private string _keycloakUrl= $"http://10.0.26.54:8080";
         private string _realm= $"test_client";
         private string _clientId= $"TestSSO";
         private string _clientSecret=$"eow12rrq9YQqERnTPKabxpmU1QDyYsGG";
@@ -282,7 +282,7 @@ namespace api.Services.KeyCloakServices
         public async Task<bool> UsernameExistsInDatabase(string username)
         {
 
-            string _connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+            string _connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
 
             try
             {
@@ -569,7 +569,7 @@ namespace api.Services.KeyCloakServices
         /// <returns></returns>
         public async Task<bool> ValidateUserInfo(ResetPasswordRequest request)
         {
-            string _connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+            string _connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
             try
             {
                 using var connection = new SqlConnection(_connectionString);
@@ -610,7 +610,7 @@ namespace api.Services.KeyCloakServices
                 }
 
                 // 🔹 Lấy userId từ Keycloak dựa vào username
-                string keycloakApiUrl = $"http://192.168.164.145:8080/admin/realms/test_client/users?username={username}";
+                string keycloakApiUrl = $"http://10.0.26.54:8080/admin/realms/test_client/users?username={username}";
                 var request = new HttpRequestMessage(HttpMethod.Get, keycloakApiUrl);
                 request.Headers.Add("Authorization", $"Bearer {adminToken}");
 
@@ -643,7 +643,7 @@ namespace api.Services.KeyCloakServices
                 _logger.LogInformation($"Updating password for Keycloak user ID: {userId}");
 
                 // 🔹 Cập nhật mật khẩu mới
-                string passwordUpdateUrl = $"http://192.168.164.145:8080/admin/realms/test_client/users/{userId}/reset-password";
+                string passwordUpdateUrl = $"http://10.0.26.54:8080/admin/realms/test_client/users/{userId}/reset-password";
                 var passwordUpdatePayload = new
                 {
                     type = "password",

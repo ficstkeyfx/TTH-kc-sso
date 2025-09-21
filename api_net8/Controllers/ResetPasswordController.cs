@@ -18,7 +18,7 @@ namespace api.UserSync
         private readonly IKeyCloakService _keycloakRepo;
         //private readonly HttpClient _httpClient;
         private readonly ILogger<ResetPasswordController> _logger;
-        private readonly string _connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+        private readonly string _connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
 
         //public ResetPasswordController(HttpClient httpClient, ILogger<ResetPasswordController> logger)
         //{
@@ -92,7 +92,7 @@ namespace api.UserSync
         //        }
 
         //        // 🔹 Lấy userId từ Keycloak dựa vào username
-        //        string keycloakApiUrl = $"http://192.168.164.145:8080/admin/realms/test_client/users?username={username}";
+        //        string keycloakApiUrl = $"http://10.0.26.54:8080/admin/realms/test_client/users?username={username}";
         //        var request = new HttpRequestMessage(HttpMethod.Get, keycloakApiUrl);
         //        request.Headers.Add("Authorization", $"Bearer {adminToken}");
 
@@ -115,7 +115,7 @@ namespace api.UserSync
         //        _logger.LogInformation($"Updating password for Keycloak user ID: {userId}");
 
         //        // 🔹 Cập nhật mật khẩu mới
-        //        string passwordUpdateUrl = $"http://192.168.164.145:8080/admin/realms/test_client/users/{userId}/reset-password";
+        //        string passwordUpdateUrl = $"http://10.0.26.54:8080/admin/realms/test_client/users/{userId}/reset-password";
         //        var passwordUpdatePayload = new
         //        {
         //            type = "password",
@@ -149,7 +149,7 @@ namespace api.UserSync
         //{
         //    try
         //    {
-        //        var tokenEndpoint = "http://192.168.164.145:8080/realms/test_client/protocol/openid-connect/token";
+        //        var tokenEndpoint = "http://10.0.26.54:8080/realms/test_client/protocol/openid-connect/token";
 
         //        var parameters = new Dictionary<string, string>
         //        {

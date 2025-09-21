@@ -18,7 +18,7 @@ namespace api.SsoKeyCloak.Controllers
         private readonly IKeyCloakService _keycloakRepo;
         //private readonly HttpClient _httpClient;
         //private readonly string _realm = "test_client"; // đổi theo realm của bạn
-        //private readonly string _baseUrl = "http://192.168.164.145:8080"; // đổi theo server Keycloak
+        //private readonly string _baseUrl = "http://10.0.26.54:8080"; // đổi theo server Keycloak
 
         //public GetListUserController()
         //{

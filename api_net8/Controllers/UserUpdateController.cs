@@ -81,7 +81,7 @@ namespace api.UserSync
         {
             try
             {
-                var tokenEndpoint = "http://192.168.164.145:8080/realms/test_client/protocol/openid-connect/token";
+                var tokenEndpoint = "http://10.0.26.54:8080/realms/test_client/protocol/openid-connect/token";
 
                 var parameters = new Dictionary<string, string>
                 {
@@ -117,7 +117,7 @@ namespace api.UserSync
             try
             {
                 var adminToken = await GetAdminToken();
-                var keycloakApiUrl = "http://192.168.164.145:8080/admin/realms/test_client/users?briefRepresentation=false";
+                var keycloakApiUrl = "http://10.0.26.54:8080/admin/realms/test_client/users?briefRepresentation=false";
 
                 var request = new HttpRequestMessage(HttpMethod.Get, keycloakApiUrl);
                 request.Headers.Add("Authorization", $"Bearer {adminToken}");
@@ -142,7 +142,7 @@ namespace api.UserSync
         private async Task<HashSet<string>> GetAllUsernamesFromSqlServer()
         {
             var usernames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+            var connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
 
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
@@ -160,7 +160,7 @@ namespace api.UserSync
 
         private async Task DeleteUserFromSqlServer(string username)
         {
-            var connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+            var connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
 
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
@@ -176,7 +176,7 @@ namespace api.UserSync
         {
             try
             {
-                var connectionString = "Server=192.168.164.145,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
+                var connectionString = "Server=10.0.26.54,1433;Database=keycloak_db;User Id=sa;Password=@Abc12345;TrustServerCertificate=True;";
                 using var connection = new SqlConnection(connectionString);
                 await connection.OpenAsync();
 

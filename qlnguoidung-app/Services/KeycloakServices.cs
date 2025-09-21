@@ -11,7 +11,7 @@ namespace QLNguoiDung.Services
 {
     public class KeycloakServices
     {
-        private const string KeycloakBase = "http://192.168.164.145:8080";
+        private const string KeycloakBase = "http://10.0.26.54:8080";
         private const string Realm = "TestSSO";
         private const string ClientId = "TestSSO3";
         private const string RedirectUri = "https://localhost:7134/callback";

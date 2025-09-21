@@ -18,7 +18,7 @@
 
 @code {
     // ====== Cấu hình Keycloak / App ======
-    private const string KeycloakBase = "http://192.168.164.145:8080";
+    private const string KeycloakBase = "http://10.0.26.54:8080";
     private const string Realm = "TestSSO";
     private const string ClientId = "TestSSO3";
     private const string ClientSecret = "eow12rrq9YQqERnTPKabxpmU1QDyYsGG"; 
@@ -32,7 +32,7 @@
     private const string HomeUrl = "/home";
     private const string TypeApp = "app";
     // Trang login nội bộ khi không còn SSO
-    private string AppLoginPage = "https://localhost:7134/login?redirect=https://localhost:7135/callback&client=TestSSO3";
+    private string AppLoginPage = "http://localhost:5105/callback?redirect=http://localhost:5106/callback&client=TestSSO3";
     private string? client;
     private string? redirect;
     private string? token;

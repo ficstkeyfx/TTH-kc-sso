@@ -9,7 +9,7 @@ namespace api.SsoKeyCloak
     //public partial class KeycloakAdminService
     //{
         //private readonly HttpClient _httpClient;
-        //private readonly string _baseUrl = "http://192.168.164.145:8080";
+        //private readonly string _baseUrl = "http://10.0.26.54:8080";
         //private readonly string _realm = "test_client";
         //private readonly string _adminUsername = "admin"; // Replace with your admin username
         //private readonly string _adminPassword = "admin"; // Replace with your admin password
